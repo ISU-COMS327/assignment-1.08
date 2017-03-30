@@ -1,13 +1,8 @@
 #include <string>
 #include <vector>
+#include "numeric.h"
 
 using namespace std;
-
-typedef struct numeric {
-    int base;
-    int dice;
-    int sides;
-} numeric_t;
 
 class MonsterTemplate {
     private:
@@ -15,10 +10,10 @@ class MonsterTemplate {
         string description;
         vector<string> colors;
         char symbol;
-        numeric_t speed;
+        Numeric * speed;
         vector<string> abilities;
-        numeric_t hitpoints;
-        numeric_t attack_damage;
+        Numeric * hitpoints;
+        Numeric * attack_damage;
 
     public:
         bool isValid();
@@ -30,14 +25,14 @@ class MonsterTemplate {
         void setColors(vector<string>);
         char getSymbol();
         void setSymbol(char c);
-        numeric_t getSpeed();
-        void setSpeed(numeric_t);
+        Numeric * getSpeed();
+        void setSpeed(Numeric *);
         vector<string> getAbilities();
         void setAbilities(vector<string>);
-        numeric_t getHitpoints();
-        void setHitpoints(numeric_t);
-        numeric_t getAttackDamage();
-        void setAttackDamage(numeric_t);
+        Numeric * getHitpoints();
+        void setHitpoints(Numeric *);
+        Numeric * getAttackDamage();
+        void setAttackDamage(Numeric *);
         string toString();
         MonsterTemplate();
 };
