@@ -1,4 +1,5 @@
-#include <string>
+#ifndef NUMERIC_H
+#define NUMERIC_H
 #include <vector>
 #include <string>
 
@@ -15,3 +16,4 @@ class Numeric {
         Numeric();
 };
 
+#endif

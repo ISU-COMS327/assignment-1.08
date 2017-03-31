@@ -19,6 +19,7 @@
 #include "priority_queue.h"
 #include "monster_wrapper.h"
 #include "monster_description_parser.h"
+#include "object_description_parser.h"
 
 #define HEIGHT 105
 #define WIDTH 160
@@ -110,6 +111,7 @@ int min(int x, int y) {
 void print_usage();
 void make_rlg_directory();
 void make_monster_templates();
+void make_object_templates();
 void update_number_of_rooms();
 void generate_new_board();
 void generate_stairs();
@@ -198,6 +200,7 @@ int main(int argc, char *args[]) {
     }
     make_rlg_directory();
     make_monster_templates();
+    make_object_templates();
     exit(1);
     player.x = player_x;
     player.y = player_y;
@@ -286,6 +289,20 @@ void make_monster_templates() {
         exit(1);
     }
     p->printMonsters();
+}
+
+void make_object_templates() {
+    cout << "Making object templates\n";
+    string filename = RLG_DIRECTORY + "object_desc.txt";
+    ObjectDescriptionParser * p = new ObjectDescriptionParser(filename);
+    try{
+        p->parseFile();
+    }
+    catch(const char * e) {
+        cout << "Error reading object file: " << e << "\nExiting program" << endl;
+        exit(2);
+    }
+    p->printObjects();
 }
 
 void update_number_of_rooms() {
