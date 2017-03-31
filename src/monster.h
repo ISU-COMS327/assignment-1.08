@@ -23,5 +23,6 @@ class Monster {
         void setLastKnownPlayerX(int v);
         void setLastKnownPlayerY(int v);
         void setSpeed(int v);
+        void resetPlayerLocation();
 };
 #endif

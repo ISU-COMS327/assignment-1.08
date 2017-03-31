@@ -1,26 +1,26 @@
-CC = gcc
-CXX = g++
-CFLAGS = -g -Wall -Werror -ggdb
-OBJ = monster monster_wrapper generate_dungeon numeric monster_template monster_description_parser
-OBJS = $(addsuffix .o,$(OBJ))
+CC = g++
 
-all:
-	make compile
+CFLAGS = -Wall -Werror -g
 
-compile:
-	$(CXX) -c util.cpp -o util.o
-	$(CXX) -c numeric.cpp -o numeric.o
-	$(CXX) -c monster.cpp -o monster.o
-	$(CXX) -c monster_wrapper.cpp -o monster_wrapper.o
-	$(CXX) $(CFLAGS) -c priority_queue.cpp -o priority_queue.o
-	$(CXX) $(CFLAGS) -c monster_template.cpp -o monster_template.o
-	$(CXX) $(CFLAGS) -c monster_description_parser.cpp -o monster_description_parser.o
-	$(CXX) $(CFLAGS) -c object_template.cpp -o object_template.o
-	$(CXX) $(CFLAGS) -c object_description_parser.cpp -o object_description_parser.o
-	$(CXX) $(CFLAGS) -c generate_dungeon.cpp -o generate_dungeon.o -Ipriority_queue.o -Ilncurses -Imonster_description_parser.o
-	$(CXX) generate_dungeon.o util.o numeric.o monster_wrapper.o monster.o monster_template.o monster_description_parser.o object_template.o object_description_parser.o priority_queue.o -lncurses -o generate_dungeon
+SOURCES = $(wildcard src/*.cpp)
+OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-.PHONY: clean
+SRCDIR = src
+OBJDIR = obj
+
+EXECUTABLE=generate_dungeon
+
+all: prereq $(EXECUTABLE)
+
+$(EXECUTABLE): $(OBJECTS)
+	$(CC) $(CFLAGS) -o $@ -lncurses $^
+
+$(OBJECTS) : $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
+	$(CC) $(CFLAGS) -o $@ -c $^
+
+prereq:
+	mkdir -p $(OBJDIR)
+	mkdir -p $(SRCDIR)
+
 clean:
-	@rm -rf $(OBJS) monsterexe generate_dungeon *.o *.dSYM
-	@echo "Directory cleaned."
+	rm -f $(OBJECTS) $(EXECUTABLE)

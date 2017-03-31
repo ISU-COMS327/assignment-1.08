@@ -17,7 +17,7 @@
 
 #include "util.h"
 #include "priority_queue.h"
-#include "monster_wrapper.h"
+#include "monster.h"
 #include "monster_description_parser.h"
 #include "object_description_parser.h"
 
@@ -58,7 +58,7 @@ typedef struct {
     uint8_t y;
     uint8_t has_player;
     uint8_t has_monster;
-    struct Monster *monster;
+    Monster *monster;
 } Board_Cell;
 
 typedef struct {
@@ -79,7 +79,7 @@ struct Coordinate placeable_areas[HEIGHT * WIDTH];
 struct Coordinate ncurses_player_coord;
 struct Coordinate ncurses_start_coord;
 struct Room * rooms;
-struct Monster ** monsters;
+vector<Monster> monsters;
 struct Coordinate player;
 Queue * game_queue;
 
@@ -211,7 +211,7 @@ int main(int argc, char *args[]) {
     center_board_on_player();
     move(ncurses_player_coord.y, ncurses_player_coord.x);
     refresh();
-    while(NUMBER_OF_MONSTERS && PLAYER_IS_ALIVE && !DO_QUIT) {
+    while(monsters.size() > 0 && PLAYER_IS_ALIVE && !DO_QUIT) {
         move(ncurses_player_coord.y, ncurses_player_coord.x);
         Node min = extract_min(game_queue);
         int speed;
@@ -249,10 +249,10 @@ int main(int argc, char *args[]) {
                 continue;
             }
             move_monster_at_index(monster_index);
-            struct Monster *monster = monsters[monster_index];
-            speed = Monster_get_speed(monster);
-            min.coord.x = Monster_get_x(monster);
-            min.coord.y = Monster_get_y(monster);
+            Monster monster = monsters[monster_index];
+            speed = monster.getSpeed();
+            min.coord.x = monster.getX();
+            min.coord.y = monster.getY();
         }
         insert_with_priority(game_queue, min.coord, (1000/speed) + min.priority);
     }
@@ -260,7 +260,7 @@ int main(int argc, char *args[]) {
     if (!PLAYER_IS_ALIVE) {
         add_message("You lost. The monsters killed you (press any key to exit)");
     }
-    else if(!NUMBER_OF_MONSTERS) {
+    else if(!monsters.size()) {
         add_message("You won, killing all the monsters (press any key to exit)");
     }
 
@@ -788,19 +788,20 @@ struct Coordinate get_random_board_location(int seed) {
 }
 
 void generate_monsters() {
-    monsters = (struct Monster **) malloc(sizeof(struct Monster *) * NUMBER_OF_MONSTERS);
+    monsters.empty();
+    monsters.resize(NUMBER_OF_MONSTERS);
     struct Coordinate last_known_player_location;
     last_known_player_location.x = 0;
     last_known_player_location.y = 0;
     for (int i = 0; i < NUMBER_OF_MONSTERS; i++) {
-        struct Monster * m = newMonster();;
+        Monster * m = new Monster();
         struct Coordinate coordinate;
         while (1) {
             coordinate = get_random_board_location(i);
             int is_new = 1;
             for (int j = 0; j < i; j++) {
-                int old_x = Monster_get_x(monsters[j]);
-                int old_y = Monster_get_y(monsters[j]);
+                int old_x = monsters[j].getX();
+                int old_y = monsters[j].getY();
                 if (old_x == coordinate.x && old_y == coordinate.y && old_x == player.x && old_y == player.y) {
                     is_new = 0;
                     break;
@@ -810,15 +811,15 @@ void generate_monsters() {
                 break;
             }
         }
-        Monster_set_speed(m, random_int(5, 20));
-        Monster_set_x(m, coordinate.x);
-        Monster_set_y(m, coordinate.y);
-        Monster_set_last_known_player_x(m, last_known_player_location.x);
-        Monster_set_last_known_player_y(m, last_known_player_location.y);
-        Monster_set_decimal_type(m, random_int(0, 15));
+        m->setSpeed(random_int(5, 20));
+        m->setX(coordinate.x);
+        m->setY(coordinate.y);
+        m->setLastKnownPlayerX(last_known_player_location.x);
+        m->setLastKnownPlayerY(last_known_player_location.y);
+        m->setDecimalType(random_int(0, 15));
         board[coordinate.y][coordinate.x].has_monster = 1;
         board[coordinate.y][coordinate.x].monster = m;
-        monsters[i] = m;
+        monsters[i] = * m;
         insert_with_priority(game_queue, coordinate, i + 1);
     }
 }
@@ -902,7 +903,7 @@ void update_board_view(int ncurses_start_x, int ncurses_start_y) {
                 coord.x = x;
                 coord.y = y;
                 int index = get_monster_index(coord);
-                int decimal_type = Monster_get_decimal_type(monsters[index]);
+                int decimal_type = monsters[index].getDecimalType();
                 mvprintw(row, col, "%x", decimal_type);
             }
             else {
@@ -1079,7 +1080,7 @@ void print_board() {
                 coord.x = x;
                 coord.y = y;
                 int index = get_monster_index(coord);
-                int decimal_type = Monster_get_decimal_type(monsters[index]);
+                int decimal_type = monsters[index].getDecimalType();
                 printf("%x", decimal_type);
             }
             else {
@@ -1255,10 +1256,10 @@ void connect_rooms_at_indexes(int index1, int index2) {
 
 int get_monster_index(struct Coordinate coord) {
     int index = -1;
-    for (int i = 0; i < NUMBER_OF_MONSTERS; i++) {
-        struct Monster *m = monsters[i];
-        int x = Monster_get_x(m);
-        int y = Monster_get_y(m);
+    for (int i = 0; i < monsters.size(); i++) {
+        Monster m = monsters[i];
+        int x = m.getX();
+        int y = m.getY();
         if (x == coord.x && y == coord.y) {
             index = i;
             break;
@@ -1452,9 +1453,9 @@ struct Room get_room_player_is_in() {
 }
 
 int monster_is_in_same_room_as_player(int index) {
-    struct Monster *m = monsters[index];
-    int x = Monster_get_x(m);
-    int y = Monster_get_y(m);
+    Monster m = monsters[index];
+    int x = m.getX();
+    int y = m.getY();
     struct Room room = get_room_player_is_in();
     if (room.start_x <= x && x <= room.end_x) {
         if (room.start_y <= y && y <= room.end_y) {
@@ -1469,16 +1470,16 @@ int should_do_erratic_behavior() {
 }
 
 int monster_knows_last_player_location(int index) {
-    struct Monster * m = monsters[index];
-    int last_x = Monster_get_last_known_player_x(m);
-    int last_y = Monster_get_last_known_player_y(m);
+    Monster m = monsters[index];
+    int last_x = m.getLastKnownPlayerX();
+    int last_y = m.getLastKnownPlayerY();
     return last_x != 0 && last_y != 0;
 }
 
 struct Coordinate get_straight_path_to(int index, struct Coordinate coord) {
-    struct Monster * m = monsters[index];
-    int x = Monster_get_x(m);
-    int y = Monster_get_y(m);
+    Monster m = monsters[index];
+    int x = m.getX();
+    int y = m.getY();
     struct Coordinate new_coord;
     if (x == coord.x) {
         new_coord.x = x;
@@ -1504,22 +1505,18 @@ struct Coordinate get_straight_path_to(int index, struct Coordinate coord) {
 }
 
 void kill_monster_at(int index) {
-    struct Monster * m = monsters[index];
-    int x = Monster_get_x(m);
-    int y = Monster_get_y(m);
+    Monster m = monsters[index];
+    int x = m.getX();
+    int y = m.getY();
     board[y][x].has_monster = 0;
-    for (int i = index + 1; i < NUMBER_OF_MONSTERS; i++) {
-        monsters[i - 1] = monsters[i];
-    }
-    NUMBER_OF_MONSTERS --;
-    deleteMonster(m);
+    monsters.erase(monsters.begin() + index);
 }
 
 void kill_player_or_monster_at(struct Coordinate coord) {
     int index = get_monster_index(coord);
     string str = "";
     if (index >= 0) {
-        int decimal_type = Monster_get_decimal_type(monsters[index]);
+        int decimal_type = monsters[index].getDecimalType();
         add_message("Monster with ability " + to_string(decimal_type) + " was killed!");
         kill_monster_at(index);
     }
@@ -1530,9 +1527,9 @@ void kill_player_or_monster_at(struct Coordinate coord) {
 }
 
 void move_monster_at_index(int index) {
-    struct Monster * monster = monsters[index];
-    int monster_x = Monster_get_x(monster);
-    int monster_y = Monster_get_y(monster);
+    Monster monster = monsters[index];
+    int monster_x = monster.getX();
+    int monster_y = monster.getY();
     Board_Cell cell = board[monster_y][monster_x];
     struct Coordinate monster_coord;
     monster_coord.x = monster_x;
@@ -1541,10 +1538,10 @@ void move_monster_at_index(int index) {
     new_coord.x = monster_x;
     new_coord.y = monster_y;
     board[new_coord.y][new_coord.x].has_monster = 0;
-    int decimal_type = Monster_get_decimal_type(monster);
+    int decimal_type = monster.getDecimalType();
     struct Coordinate last_known_player_location;
-    last_known_player_location.x = Monster_get_last_known_player_x(monster);
-    last_known_player_location.y = Monster_get_last_known_player_y(monster);
+    last_known_player_location.x = monster.getLastKnownPlayerX();
+    last_known_player_location.y = monster.getLastKnownPlayerY();
     switch(decimal_type) {
         case 0: // nothing
             if (monster_is_in_same_room_as_player(index)) {
@@ -1556,14 +1553,14 @@ void move_monster_at_index(int index) {
             break;
         case 1: // intelligent
             if (monster_is_in_same_room_as_player(index)) {
-                Monster_set_last_known_player_x(monster, player.x);
-                Monster_set_last_known_player_y(monster, player.y);
+                monster.setLastKnownPlayerX(player.x);
+                monster.setLastKnownPlayerY(player.y);
                 new_coord = get_straight_path_to(index, player);
             }
             else if(monster_knows_last_player_location(index)) {
                 new_coord = get_straight_path_to(index, last_known_player_location);
                 if (new_coord.x == last_known_player_location.x && new_coord.y == last_known_player_location.y) {
-                    Monster_reset_player_location(monster);
+                    monster.resetPlayerLocation();
                 }
             }
             else {
@@ -1606,14 +1603,14 @@ void move_monster_at_index(int index) {
             break;
         case 5: // tunneling + intelligent
             if (monster_is_in_same_room_as_player(index)) {
-                Monster_set_last_known_player_x(monster, player.x);
-                Monster_set_last_known_player_y(monster, player.y);
+                monster.setLastKnownPlayerX(player.x);
+                monster.setLastKnownPlayerY(player.y);
                 new_coord = get_straight_path_to(index, player);
             }
             else if(monster_knows_last_player_location(index)) {
                 new_coord = get_straight_path_to(index, last_known_player_location);
                 if (new_coord.x == last_known_player_location.x && new_coord.y == last_known_player_location.y) {
-                    Monster_reset_player_location(monster);
+                    monster.resetPlayerLocation();
                 }
             }
             else {
@@ -1688,14 +1685,14 @@ void move_monster_at_index(int index) {
             }
             else {
                 if (monster_is_in_same_room_as_player(index)) {
-                    Monster_set_last_known_player_x(monster, player.x);
-                    Monster_set_last_known_player_y(monster, player.y);
+                    monster.setLastKnownPlayerX(player.x);
+                    monster.setLastKnownPlayerY(player.y);
                     new_coord = get_straight_path_to(index, player);
                 }
                 else if(monster_knows_last_player_location(index)) {
                     new_coord = get_straight_path_to(index, last_known_player_location);
                     if (new_coord.x == last_known_player_location.x && new_coord.y == last_known_player_location.y) {
-                        Monster_reset_player_location(monster);
+                        monster.resetPlayerLocation();
                     }
                 }
                 else {
@@ -1770,14 +1767,14 @@ void move_monster_at_index(int index) {
             }
             else {
                 if (monster_is_in_same_room_as_player(index)) {
-                    Monster_set_last_known_player_x(monster, player.x);
-                    Monster_set_last_known_player_y(monster, player.y);
+                    monster.setLastKnownPlayerX(player.x);
+                    monster.setLastKnownPlayerY(player.y);
                     new_coord = get_straight_path_to(index, player);
                 }
                 else if(monster_knows_last_player_location(index)) {
                     new_coord = get_straight_path_to(index, last_known_player_location);
                     if (new_coord.x == last_known_player_location.x && new_coord.y == last_known_player_location.y) {
-                        Monster_reset_player_location(monster);
+                        monster.resetPlayerLocation();
                     }
                 }
                 else {
@@ -1851,7 +1848,8 @@ void move_monster_at_index(int index) {
     if (new_coord.x != monster_x || new_coord.y != monster_y) {
         kill_player_or_monster_at(new_coord);
     }
-    Monster_set_x(monster, new_coord.x);
-    Monster_set_y(monster, new_coord.y);
+    monster.setX(new_coord.x);
+    monster.setY(new_coord.y);
+    monsters[index] = monster;
     board[new_coord.y][new_coord.x].has_monster = 1;
 }

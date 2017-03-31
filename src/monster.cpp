@@ -48,3 +48,7 @@ void Monster :: setSpeed(int v) {
     speed = v;
 }
 
+void Monster :: resetPlayerLocation() {
+    last_known_player_x = 0;
+    last_known_player_y = 0;
+}
