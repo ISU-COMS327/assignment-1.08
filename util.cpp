@@ -17,7 +17,7 @@ vector<string> split(const string &text, string sep) {
 }
 
 /*
- * This starts_with function was taken online: Source:
+ * This starts_with function was taken online. Source:
  * http://stackoverflow.com/a/7756105
  */
 bool starts_with(const string& s1, const string& s2) {
@@ -36,3 +36,13 @@ string vector_to_string(vector<string> vec) {
 }
 
 
+/*
+ * This random_int function was taken online. Source:
+ * http://stackoverflow.com/a/19728404
+ */
+int random_int(int min_num, int max_num) {
+    random_device rd;
+    mt19937 rng(rd());
+    uniform_int_distribution<int> uni(min_num, max_num);
+    return uni(rng);
+}

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <exception>
 
+#include "util.h"
 #include "priority_queue.h"
 #include "monster_wrapper.h"
 #include "monster_description_parser.h"
@@ -112,7 +113,6 @@ void make_monster_templates();
 void update_number_of_rooms();
 void generate_new_board();
 void generate_stairs();
-int random_int(int min_num, int max_num, int add_to_seed);
 void initialize_board();
 void initialize_immutable_rock();
 void load_board();
@@ -131,7 +131,7 @@ void handle_user_input_for_look_mode(int key);
 void print_board();
 void print_cell(Board_Cell cell);
 void dig_rooms(int number_of_rooms_to_dig);
-void dig_room(int index, int recursive_iteration);
+void dig_room(int index);
 int room_is_valid_at_index(int index);
 void add_rooms_to_board();
 void dig_cooridors();
@@ -338,7 +338,7 @@ struct Coordinate get_random_unoccupied_location_in_room(struct Room room) {
             }
         }
     }
-    int index = random_int(0, available_coords.length, room.start_x);
+    int index = random_int(0, available_coords.length);
     return available_coords.coords[index];
 }
 
@@ -482,17 +482,6 @@ void print_usage() {
     printf("usage: generate_dungeon [--save] [--load] [--rooms=<number of rooms>] [--player_x=<player x position>] [--player_y=<player y position>] [--nummon=<number of monsters>]\n");
 }
 
-int random_int(int min_num, int max_num, int add_to_seed) {
-    int seed = time(NULL);
-    if (add_to_seed) {
-        seed += add_to_seed;
-    }
-    max_num ++;
-    int delta = max_num - min_num;
-    srand(seed);
-    return (rand() % delta) + min_num;
-}
-
 void initialize_board() {
     Board_Cell cell;
     cell.type = TYPE_ROCK;
@@ -502,7 +491,7 @@ void initialize_board() {
         for (int x = 0; x < WIDTH; x++) {
             cell.x = x;
             cell.y = y;
-            cell.hardness = random_int(1, 254, x + y);
+            cell.hardness = random_int(1, 254);
             board[y][x] = cell;
             cell.hardness = IMMUTABLE_ROCK;
             player_board[y][x] = cell;
@@ -540,8 +529,8 @@ void initialize_immutable_rock() {
 void place_player() {
     if (!player.x && !player.y) {
         struct Room room = rooms[0];
-        int x = random_int(room.start_x, room.end_x, 100);
-        int y = random_int(room.start_y, room.end_y, 500);
+        int x = random_int(room.start_x, room.end_x);
+        int y = random_int(room.start_y, room.end_y);
         player.x = x;
         player.y = y;
     }
@@ -777,7 +766,7 @@ void set_non_tunneling_distance_to_player() {
 }
 
 struct Coordinate get_random_board_location(int seed) {
-    int index = random_int(0, NUMBER_OF_PLACEABLE_AREAS, seed);
+    int index = random_int(0, NUMBER_OF_PLACEABLE_AREAS);
     return placeable_areas[index];
 }
 
@@ -804,12 +793,12 @@ void generate_monsters() {
                 break;
             }
         }
-        Monster_set_speed(m, random_int(5, 20, i));
+        Monster_set_speed(m, random_int(5, 20));
         Monster_set_x(m, coordinate.x);
         Monster_set_y(m, coordinate.y);
         Monster_set_last_known_player_x(m, last_known_player_location.x);
         Monster_set_last_known_player_y(m, last_known_player_location.y);
-        Monster_set_decimal_type(m, random_int(0, 15, i + 1));
+        Monster_set_decimal_type(m, random_int(0, 15));
         board[coordinate.y][coordinate.x].has_monster = 1;
         board[coordinate.y][coordinate.x].monster = m;
         monsters[i] = m;
@@ -1101,18 +1090,18 @@ void print_cell(Board_Cell cell) {
 
 void dig_rooms(int number_of_rooms_to_dig) {
     for (int i = 0; i < number_of_rooms_to_dig; i++) {
-        dig_room(i, 0);
+        dig_room(i);
     }
     add_rooms_to_board();
 }
 
-void dig_room(int index, int recursive_iteration) {
+void dig_room(int index) {
     // The index + recusrive_iteration is just a way to gain variety in the
     // random number. The hope is that it makes the program run faster.
-    int start_x = random_int(1, WIDTH - MIN_ROOM_WIDTH - 1, index + recursive_iteration);
-    int start_y = random_int(1, HEIGHT - MIN_ROOM_HEIGHT - 1, index + recursive_iteration);
-    int room_height = random_int(MIN_ROOM_HEIGHT, MAX_ROOM_HEIGHT, index + recursive_iteration);
-    int room_width = random_int(MIN_ROOM_WIDTH, MAX_ROOM_WIDTH, index + recursive_iteration);
+    int start_x = random_int(1, WIDTH - MIN_ROOM_WIDTH - 1);
+    int start_y = random_int(1, HEIGHT - MIN_ROOM_HEIGHT - 1);
+    int room_height = random_int(MIN_ROOM_HEIGHT, MAX_ROOM_HEIGHT);
+    int room_width = random_int(MIN_ROOM_WIDTH, MAX_ROOM_WIDTH);
     int end_y = start_y + room_height;
     if (end_y >= HEIGHT - 1) {
         end_y = HEIGHT - 2;
@@ -1139,7 +1128,7 @@ void dig_room(int index, int recursive_iteration) {
     rooms[index].end_x = end_x;
     rooms[index].end_y = end_y;
     if (!room_is_valid_at_index(index)) {
-        dig_room(index, recursive_iteration + 1);
+        dig_room(index);
     }
 }
 
@@ -1213,7 +1202,7 @@ void connect_rooms_at_indexes(int index1, int index2) {
     int cur_x = start_x;
     int cur_y = start_y;
     while(1) {
-        int random_num = random_int(0, RAND_MAX, cur_x + cur_y) >> 3;
+        int random_num = random_int(0, RAND_MAX) >> 3;
         int move_y = random_num % 2 == 0;
         if (strcmp(board[cur_y][cur_x].type.c_str(),  TYPE_ROCK.c_str()) != 0) {
             if (cur_y != end_y) {
@@ -1324,7 +1313,7 @@ struct Available_Coords get_non_tunneling_available_coords_for(struct Coordinate
 struct Coordinate get_random_new_non_tunneling_location(struct Coordinate coord) {
     struct Coordinate new_coord;
     struct Available_Coords coords = get_non_tunneling_available_coords_for(coord);
-    int new_coord_index = random_int(0, coords.length - 1, coord.x + coord.y);
+    int new_coord_index = random_int(0, coords.length - 1);
     struct Coordinate temp_coord = coords.coords[new_coord_index];
     new_coord.x = temp_coord.x;
     new_coord.y = temp_coord.y;
@@ -1351,17 +1340,15 @@ struct Coordinate get_random_new_tunneling_location(struct Coordinate coord) {
     if (max_y >= WIDTH - 1) {
         max_y = coord.y;
     }
-    int local_counter = 0;
     while(1) {
-        new_coord.x = random_int(min_x, max_x, local_counter);
-        new_coord.y = random_int(min_y, max_y, local_counter);
+        new_coord.x = random_int(min_x, max_x);
+        new_coord.y = random_int(min_y, max_y);
         if (coord.x == new_coord.x && coord.y == new_coord.y) {
             continue;
         }
         if (board[new_coord.y][new_coord.x].hardness != IMMUTABLE_ROCK) {
             break;
         }
-        local_counter ++;
     }
     return new_coord;
 }
@@ -1460,8 +1447,8 @@ int monster_is_in_same_room_as_player(int index) {
     return 0;
 }
 
-int should_do_erratic_behavior(int index) {
-    return random_int(0, 1, index);
+int should_do_erratic_behavior() {
+    return random_int(0, 1);
 }
 
 int monster_knows_last_player_location(int index) {
@@ -1666,7 +1653,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 8: // erratic
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1679,7 +1666,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 9: // erratic + intelligent
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1700,7 +1687,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 10: // erratic + telepathic
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1712,7 +1699,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 11: // erratic + intelligent + telepathic
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1734,7 +1721,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 12: // erratic + tunneling
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1761,7 +1748,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 13: // erratic + tunneling + intelligent
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1796,7 +1783,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 14: // erratic + tunneling + telepathic
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
@@ -1818,7 +1805,7 @@ void move_monster_at_index(int index) {
             }
             break;
         case 15: // erratic + tunneling + telepathic + intelligent
-            if (should_do_erratic_behavior(index)) {
+            if (should_do_erratic_behavior()) {
                 new_coord = get_random_new_non_tunneling_location(monster_coord);
             }
             else {
