@@ -25,6 +25,10 @@ bool Numeric :: isValid() {
     return base >= 0 && dice >= 0 && sides >= 0;
 }
 
+int Numeric :: roll() {
+    return random_int(base + dice, base + (dice * sides));
+}
+
 string Numeric :: toString() {
     return to_string(base) + "+" + to_string(dice) + "d" + to_string(sides);
 }

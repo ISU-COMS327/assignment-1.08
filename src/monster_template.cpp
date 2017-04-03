@@ -81,9 +81,26 @@ string MonsterTemplate::toString() {
            + "\n" + attack_damage->toString();
 }
 
+Monster * MonsterTemplate::makeMonster() {
+    Monster * m = new Monster();
+    m->last_known_player_x = 0;
+    m->last_known_player_y = 0;
+    m->name = name;
+    m->description = description;
+    m->color = colors[0];
+    m->symbol = symbol;
+    m->speed = speed->roll();
+    m->abilities = abilities;
+    m->hitpoints = hitpoints->roll();
+    m->decimal_type = 0;
+    m->attack_damage = attack_damage;
+    return m;
+}
+
 MonsterTemplate::MonsterTemplate() {
     name = "";
     description = "";
     colors.empty();
     abilities.empty();
 }
+

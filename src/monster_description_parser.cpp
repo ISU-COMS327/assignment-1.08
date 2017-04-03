@@ -18,7 +18,6 @@ MonsterDescriptionParser::MonsterDescriptionParser(string filepath) {
 }
 
 void MonsterDescriptionParser::parseFile() {
-    cout << "Parsing file: " + filepath << endl;
     vector<MonsterTemplate> new_monsters;
     MonsterTemplate * current_monster = NULL;
     string line;

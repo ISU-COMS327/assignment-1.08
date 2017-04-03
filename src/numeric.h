@@ -12,6 +12,7 @@ class Numeric {
         int sides;
         string toString();
         bool isValid();
+        int roll();
         Numeric(string);
         Numeric();
 };

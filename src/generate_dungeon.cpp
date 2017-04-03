@@ -19,6 +19,7 @@
 #include "priority_queue.h"
 #include "monster.h"
 #include "monster_description_parser.h"
+#include "monster_template.h"
 #include "object_description_parser.h"
 
 #define HEIGHT 105
@@ -80,6 +81,7 @@ struct Coordinate ncurses_player_coord;
 struct Coordinate ncurses_start_coord;
 struct Room * rooms;
 vector<Monster> monsters;
+vector<MonsterTemplate> monster_templates;
 struct Coordinate player;
 Queue * game_queue;
 
@@ -108,7 +110,10 @@ int min(int x, int y) {
     }
     return y;
 }
+void generate_monsters_from_templates();
+void generate_objects_from_templates();
 void print_usage();
+struct Coordinate get_random_board_location();
 void make_rlg_directory();
 void make_monster_templates();
 void make_object_templates();
@@ -201,7 +206,8 @@ int main(int argc, char *args[]) {
     make_rlg_directory();
     make_monster_templates();
     make_object_templates();
-    exit(1);
+    //generate_monsters_from_templates();
+    //generate_objects_from_templates();
     player.x = player_x;
     player.y = player_y;
     update_number_of_rooms();
@@ -211,6 +217,7 @@ int main(int argc, char *args[]) {
     center_board_on_player();
     move(ncurses_player_coord.y, ncurses_player_coord.x);
     refresh();
+    add_message(to_string(game_queue->length));
     while(monsters.size() > 0 && PLAYER_IS_ALIVE && !DO_QUIT) {
         move(ncurses_player_coord.y, ncurses_player_coord.x);
         Node min = extract_min(game_queue);
@@ -243,16 +250,21 @@ int main(int argc, char *args[]) {
             set_tunneling_distance_to_player();
         }
         else {
-            add_message("The monsters are moving towards you...");
-            int monster_index = get_monster_index(min.coord);
-            if (monster_index == -1) {
-                continue;
+            try{
+                int monster_index = get_monster_index(min.coord);
+                add_message(to_string(monster_index));
+                if (monster_index == -1) {
+                    continue;
+                }
+                move_monster_at_index(monster_index);
+                Monster monster = monsters[monster_index];
+                speed = monster.speed;
+                min.coord.x = monster.x;
+                min.coord.y = monster.y;
             }
-            move_monster_at_index(monster_index);
-            Monster monster = monsters[monster_index];
-            speed = monster.getSpeed();
-            min.coord.x = monster.getX();
-            min.coord.y = monster.getY();
+            catch(exception &e) {
+                add_message(e.what());
+            }
         }
         insert_with_priority(game_queue, min.coord, (1000/speed) + min.priority);
     }
@@ -276,9 +288,38 @@ int main(int argc, char *args[]) {
 
     return 0;
 }
+void generate_monsters_from_templates() {
+    monsters.empty();
+    monsters.resize(monster_templates.size());
+    for (int i = 0; i < monster_templates.size(); i++) {
+        struct Coordinate coordinate;
+        MonsterTemplate monster_template = monster_templates[i];
+        Monster * monster = monster_template.makeMonster();
+        while (1) {
+            coordinate = get_random_board_location();
+            Board_Cell cell = board[coordinate.y][coordinate.x];
+            if (cell.has_monster || player.x == coordinate.x || player.y == coordinate.y) {
+                continue;
+            }
+            else {
+                break;
+            }
+        }
+        monster->x = coordinate.x;
+        monster->y = coordinate.y;
+        board[monster->y][monster->x].has_monster = 1;
+        board[monster->y][monster->x].monster = monster;
+        monsters.push_back(*monster);
+        insert_with_priority(game_queue, coordinate, i + 1);
+    }
+
+}
+
+void generate_objects_from_templates() {
+
+}
 
 void make_monster_templates() {
-    printf("Making monster templates\n");
     string filename = RLG_DIRECTORY + "monster_desc.txt";
     MonsterDescriptionParser * p = new MonsterDescriptionParser(filename);
     try {
@@ -288,11 +329,10 @@ void make_monster_templates() {
         cout << "Error reading monster file: " << e << "\nExiting program" <<endl;
         exit(1);
     }
-    p->printMonsters();
+    monster_templates = p->getMonsterTemplates();
 }
 
 void make_object_templates() {
-    cout << "Making object templates\n";
     string filename = RLG_DIRECTORY + "object_desc.txt";
     ObjectDescriptionParser * p = new ObjectDescriptionParser(filename);
     try{
@@ -302,7 +342,6 @@ void make_object_templates() {
         cout << "Error reading object file: " << e << "\nExiting program" << endl;
         exit(2);
     }
-    p->printObjects();
 }
 
 void update_number_of_rooms() {
@@ -324,18 +363,19 @@ void generate_new_board() {
     }
     else {
         if (rooms) {
+            add_message("FREEING ROOMS");
             free(rooms);
         }
         rooms = (struct Room *) malloc(sizeof(struct Room) * NUMBER_OF_ROOMS);
         dig_rooms(NUMBER_OF_ROOMS);
         dig_cooridors();
     }
-    game_queue = create_new_queue(NUMBER_OF_MONSTERS + 1);
+    game_queue = create_new_queue(monster_templates.size() + 1);
     place_player();
     set_placeable_areas();
     set_non_tunneling_distance_to_player();
     set_tunneling_distance_to_player();
-    generate_monsters();
+    generate_monsters_from_templates();
     generate_stairs();
 }
 
@@ -602,46 +642,61 @@ void add_tunneling_neighbor(Neighbors * neighbors, Board_Cell cell) {
 }
 
 
-Neighbors *get_tunneling_neighbors(struct Coordinate coord) {
+vector<Board_Cell> get_tunneling_neighbors(struct Coordinate coord) {
+    vector<Board_Cell> neighbors;
     int can_go_right = coord.x < WIDTH -1;
     int can_go_up = coord.y > 0;
     int can_go_left = coord.x > 0;
     int can_go_down = coord.y < HEIGHT -1;
-    Neighbors *neighbors = (Neighbors * ) malloc(sizeof(Neighbors));
-    neighbors->cells = (Board_Cell *) malloc(sizeof(Board_Cell) * 8);
 
     if (can_go_right) {
         Board_Cell right = board[coord.y][coord.x + 1];
-        add_tunneling_neighbor(neighbors, right);
+        if (right.hardness < IMMUTABLE_ROCK) {
+            neighbors.push_back(right);
+        }
         if (can_go_up) {
             Board_Cell top_right = board[coord.y - 1][coord.x + 1];
-            add_tunneling_neighbor(neighbors, top_right);
+            if (top_right.hardness < IMMUTABLE_ROCK) {
+                neighbors.push_back(top_right);
+            }
         }
         if (can_go_down) {
             Board_Cell bottom_right = board[coord.y + 1][coord.x + 1];
-            add_tunneling_neighbor(neighbors, bottom_right);
+            if (bottom_right.hardness < IMMUTABLE_ROCK) {
+                neighbors.push_back(bottom_right);
+            }
         }
     }
     if (can_go_left) {
         Board_Cell left = board[coord.y][coord.x - 1];
-        add_tunneling_neighbor(neighbors, left);
+        if (left.hardness < IMMUTABLE_ROCK) {
+            neighbors.push_back(left);
+        }
         if (can_go_up) {
             Board_Cell top_left = board[coord.y - 1][coord.x - 1];
-            add_tunneling_neighbor(neighbors, top_left);
+            if (top_left.hardness < IMMUTABLE_ROCK) {
+                neighbors.push_back(top_left);
+            }
         }
         if (can_go_down) {
             Board_Cell bottom_left = board[coord.y + 1][coord.x - 1];
-            add_tunneling_neighbor(neighbors, bottom_left);
+            if (bottom_left.hardness < IMMUTABLE_ROCK) {
+                neighbors.push_back(bottom_left);
+            }
         }
     }
 
     if (can_go_up) {
         Board_Cell above = board[coord.y - 1][coord.x];
-        add_tunneling_neighbor(neighbors, above);
+        if (above.hardness < IMMUTABLE_ROCK) {
+            neighbors.push_back(above);
+        }
     }
     if (can_go_down) {
         Board_Cell below = board[coord.y + 1][coord.x];
-        add_tunneling_neighbor(neighbors, below);
+        if (below.hardness < IMMUTABLE_ROCK) {
+            neighbors.push_back(below);
+        }
     }
 
     return neighbors;
@@ -670,10 +725,10 @@ void set_tunneling_distance_to_player() {
     while(tunneling_queue->length) {
         Node min = extract_min(tunneling_queue);
         Board_Cell min_cell = board[min.coord.y][min.coord.x];
-        Neighbors * neighbors = get_tunneling_neighbors(min.coord);
+        vector<Board_Cell> neighbors = get_tunneling_neighbors(min.coord);
         int min_dist = min_cell.tunneling_distance + get_cell_weight(min_cell);
-        for (int i = 0; i < neighbors->length; i++) {
-            Board_Cell neighbor_cell = neighbors->cells[i];
+        for (int i = 0; i < neighbors.size(); i++) {
+            Board_Cell neighbor_cell = neighbors[i];
             Board_Cell cell = board[neighbor_cell.y][neighbor_cell.x];
             if (min_dist < cell.tunneling_distance) {
                 struct Coordinate coord;
@@ -687,61 +742,62 @@ void set_tunneling_distance_to_player() {
     }
 };
 
-int should_add_non_tunneling_neighbor(Board_Cell cell) {
-    return cell.hardness < 1;
-}
-
-void add_non_tunneling_neighbor(Neighbors * neighbors, Board_Cell cell) {
-    if (!should_add_non_tunneling_neighbor(cell)) {
-        return;
-    }
-    neighbors->cells[neighbors->length] = cell;
-    neighbors->length ++;
-}
-
-
-Neighbors *get_non_tunneling_neighbors(struct Coordinate coord) {
+vector<Board_Cell> get_non_tunneling_neighbors(struct Coordinate coord) {
+    vector<Board_Cell> neighbors;
     int can_go_right = coord.x < WIDTH -1;
     int can_go_up = coord.y > 0;
     int can_go_left = coord.x > 0;
     int can_go_down = coord.y < HEIGHT -1;
-    Neighbors *neighbors = (Neighbors *) malloc(sizeof(Neighbors));
-    neighbors->cells = (Board_Cell *) malloc(sizeof(Board_Cell) * 8);
-
     if (can_go_right) {
         Board_Cell right = board[coord.y][coord.x + 1];
-        add_non_tunneling_neighbor(neighbors, right);
+        if (right.hardness < 1) {
+            neighbors.push_back(right);
+        }
         if (can_go_up) {
             Board_Cell top_right = board[coord.y - 1][coord.x + 1];
-            add_non_tunneling_neighbor(neighbors, top_right);
+            if (top_right.hardness < 1) {
+                neighbors.push_back(top_right);
+            }
         }
         if (can_go_down) {
             Board_Cell bottom_right = board[coord.y + 1][coord.x + 1];
-            add_non_tunneling_neighbor(neighbors, bottom_right);
+            if (bottom_right.hardness < 1) {
+                neighbors.push_back(bottom_right);
+            }
         }
     }
+
     if (can_go_left) {
         Board_Cell left = board[coord.y][coord.x - 1];
-        add_non_tunneling_neighbor(neighbors, left);
+        if (left.hardness < 1) {
+            neighbors.push_back(left);
+        }
         if (can_go_up) {
             Board_Cell top_left = board[coord.y - 1][coord.x - 1];
-            add_non_tunneling_neighbor(neighbors, top_left);
+            if (top_left.hardness < 1) {
+                neighbors.push_back(top_left);
+            }
         }
         if (can_go_down) {
             Board_Cell bottom_left = board[coord.y + 1][coord.x - 1];
-            add_non_tunneling_neighbor(neighbors, bottom_left);
+            if (bottom_left.hardness < 1) {
+                neighbors.push_back(bottom_left);
+            }
         }
     }
 
     if (can_go_up) {
         Board_Cell above = board[coord.y - 1][coord.x];
-        add_non_tunneling_neighbor(neighbors, above);
+        if (above.hardness < 1) {
+            neighbors.push_back(above);
+        }
     }
     if (can_go_down) {
         Board_Cell below = board[coord.y + 1][coord.x];
-        add_non_tunneling_neighbor(neighbors, below);
+        if (below.hardness < 1) {
+            neighbors.push_back(below);
+        }
     }
-
     return neighbors;
 }
 
@@ -766,10 +822,10 @@ void set_non_tunneling_distance_to_player() {
     while(non_tunneling_queue->length) {
         Node min = extract_min(non_tunneling_queue);
         Board_Cell min_cell = board[min.coord.y][min.coord.x];
-        Neighbors * neighbors = get_non_tunneling_neighbors(min.coord);
+        vector<Board_Cell> neighbors = get_non_tunneling_neighbors(min.coord);
         int min_dist = min_cell.non_tunneling_distance + 1;
-        for (int i = 0; i < neighbors->length; i++) {
-            Board_Cell neighbor_cell = neighbors->cells[i];
+        for (int i = 0; i < neighbors.size(); i++) {
+            Board_Cell neighbor_cell = neighbors[i];
             Board_Cell cell = board[neighbor_cell.y][neighbor_cell.x];
             if (min_dist < cell.non_tunneling_distance) {
                 struct Coordinate coord;
@@ -782,12 +838,13 @@ void set_non_tunneling_distance_to_player() {
     }
 }
 
-struct Coordinate get_random_board_location(int seed) {
+struct Coordinate get_random_board_location() {
     int index = random_int(0, NUMBER_OF_PLACEABLE_AREAS);
     return placeable_areas[index];
 }
 
 void generate_monsters() {
+    /*
     monsters.empty();
     monsters.resize(NUMBER_OF_MONSTERS);
     struct Coordinate last_known_player_location;
@@ -797,11 +854,11 @@ void generate_monsters() {
         Monster * m = new Monster();
         struct Coordinate coordinate;
         while (1) {
-            coordinate = get_random_board_location(i);
+            coordinate = get_random_board_location();
             int is_new = 1;
             for (int j = 0; j < i; j++) {
-                int old_x = monsters[j].getX();
-                int old_y = monsters[j].getY();
+                int old_x = monsters[j].x;
+                int old_y = monsters[j].y;
                 if (old_x == coordinate.x && old_y == coordinate.y && old_x == player.x && old_y == player.y) {
                     is_new = 0;
                     break;
@@ -811,8 +868,8 @@ void generate_monsters() {
                 break;
             }
         }
-        m->setSpeed(random_int(5, 20));
-        m->setX(coordinate.x);
+        m->speed = random_int(5, 20);
+        m->x = coordinate.x;
         m->setY(coordinate.y);
         m->setLastKnownPlayerX(last_known_player_location.x);
         m->setLastKnownPlayerY(last_known_player_location.y);
@@ -822,6 +879,7 @@ void generate_monsters() {
         monsters[i] = * m;
         insert_with_priority(game_queue, coordinate, i + 1);
     }
+    */
 }
 
 void print_non_tunneling_board() {
@@ -903,8 +961,7 @@ void update_board_view(int ncurses_start_x, int ncurses_start_y) {
                 coord.x = x;
                 coord.y = y;
                 int index = get_monster_index(coord);
-                int decimal_type = monsters[index].getDecimalType();
-                mvprintw(row, col, "%x", decimal_type);
+                mvprintw(row, col, "%c", monsters[index].symbol);
             }
             else {
                 Board_Cell cell = player_board[y][x];
@@ -1258,8 +1315,8 @@ int get_monster_index(struct Coordinate coord) {
     int index = -1;
     for (int i = 0; i < monsters.size(); i++) {
         Monster m = monsters[i];
-        int x = m.getX();
-        int y = m.getY();
+        int x = m.x;
+        int y = m.y;
         if (x == coord.x && y == coord.y) {
             index = i;
             break;
@@ -1394,23 +1451,23 @@ void move_player() {
     player.y = new_coord.y;
 }
 
-Board_Cell * get_surrounding_cells(struct Coordinate c) {
-    Board_Cell * cells = (Board_Cell *) malloc(sizeof(Board_Cell) * 8);
-    cells[0] = board[c.y + 1][c.x];
-    cells[1] = board[c.y + 1][c.x - 1];
-    cells[2] = board[c.y + 1][c.x + 1];
-    cells[3] = board[c.y - 1][c.x];
-    cells[4] = board[c.y - 1][c.x + 1];
-    cells[5] = board[c.y - 1][c.x - 1];
-    cells[6] = board[c.y][c.x + 1];
-    cells[7] = board[c.y][c.x - 1];
+vector<Board_Cell> get_surrounding_cells(struct Coordinate c) {
+    vector<Board_Cell> cells;
+    cells.push_back(board[c.y + 1][c.x]);
+    cells.push_back(board[c.y + 1][c.x - 1]);
+    cells.push_back(board[c.y + 1][c.x + 1]);
+    cells.push_back(board[c.y - 1][c.x]);
+    cells.push_back(board[c.y - 1][c.x + 1]);
+    cells.push_back(board[c.y - 1][c.x - 1]);
+    cells.push_back(board[c.y][c.x + 1]);
+    cells.push_back(board[c.y][c.x - 1]);
     return cells;
 }
 
 Board_Cell get_cell_on_tunneling_path(struct Coordinate c) {
-    Board_Cell *cells = get_surrounding_cells(c);
+    vector<Board_Cell> cells = get_surrounding_cells(c);
     Board_Cell cell = board[c.y][c.x];
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < cells.size(); i++) {
         Board_Cell current_cell = cells[i];
         if (current_cell.tunneling_distance < cell.tunneling_distance) {
             cell = current_cell;
@@ -1421,10 +1478,10 @@ Board_Cell get_cell_on_tunneling_path(struct Coordinate c) {
 
 
 Board_Cell get_cell_on_non_tunneling_path(struct Coordinate c) {
-    Board_Cell *cells = get_surrounding_cells(c);
+    vector<Board_Cell> cells = get_surrounding_cells(c);
     Board_Cell cell = board[c.y][c.x];
     int min = cell.non_tunneling_distance;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < cells.size(); i++) {
         Board_Cell my_cell = cells[i];
         if (my_cell.non_tunneling_distance < min) {
             cell = my_cell;
@@ -1452,17 +1509,17 @@ struct Room get_room_player_is_in() {
     return room;
 }
 
-int monster_is_in_same_room_as_player(int index) {
+bool monster_is_in_same_room_as_player(int index) {
     Monster m = monsters[index];
-    int x = m.getX();
-    int y = m.getY();
+    int x = m.x;
+    int y = m.y;
     struct Room room = get_room_player_is_in();
     if (room.start_x <= x && x <= room.end_x) {
         if (room.start_y <= y && y <= room.end_y) {
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 int should_do_erratic_behavior() {
@@ -1471,15 +1528,15 @@ int should_do_erratic_behavior() {
 
 int monster_knows_last_player_location(int index) {
     Monster m = monsters[index];
-    int last_x = m.getLastKnownPlayerX();
-    int last_y = m.getLastKnownPlayerY();
+    int last_x = m.last_known_player_x;
+    int last_y = m.last_known_player_y;
     return last_x != 0 && last_y != 0;
 }
 
 struct Coordinate get_straight_path_to(int index, struct Coordinate coord) {
     Monster m = monsters[index];
-    int x = m.getX();
-    int y = m.getY();
+    int x = m.x;
+    int y = m.y;
     struct Coordinate new_coord;
     if (x == coord.x) {
         new_coord.x = x;
@@ -1506,9 +1563,10 @@ struct Coordinate get_straight_path_to(int index, struct Coordinate coord) {
 
 void kill_monster_at(int index) {
     Monster m = monsters[index];
-    int x = m.getX();
-    int y = m.getY();
+    int x = m.x;
+    int y = m.y;
     board[y][x].has_monster = 0;
+    board[y][x].monster = NULL;
     monsters.erase(monsters.begin() + index);
 }
 
@@ -1516,8 +1574,7 @@ void kill_player_or_monster_at(struct Coordinate coord) {
     int index = get_monster_index(coord);
     string str = "";
     if (index >= 0) {
-        int decimal_type = monsters[index].getDecimalType();
-        add_message("Monster with ability " + to_string(decimal_type) + " was killed!");
+        add_message("Monster '" + to_string(monsters[index].symbol) + "' was killed!");
         kill_monster_at(index);
     }
     if (player.x == coord.x && player.y == coord.y) {
@@ -1526,10 +1583,21 @@ void kill_player_or_monster_at(struct Coordinate coord) {
     }
 }
 
+int get_index_of_monster(Monster monster) {
+    int index = -1;
+    for (int i = 0; i < monsters.size(); i++) {
+        Monster m = monsters[i];
+        if (m.x == monster.x && m.y == monster.y) {
+            return i;
+        }
+    }
+    return index;
+}
+
 void move_monster_at_index(int index) {
     Monster monster = monsters[index];
-    int monster_x = monster.getX();
-    int monster_y = monster.getY();
+    int monster_x = monster.x;
+    int monster_y = monster.y;
     Board_Cell cell = board[monster_y][monster_x];
     struct Coordinate monster_coord;
     monster_coord.x = monster_x;
@@ -1539,9 +1607,10 @@ void move_monster_at_index(int index) {
     new_coord.y = monster_y;
     board[new_coord.y][new_coord.x].has_monster = 0;
     int decimal_type = monster.getDecimalType();
+    add_message("Monstering " + to_string(decimal_type));
     struct Coordinate last_known_player_location;
-    last_known_player_location.x = monster.getLastKnownPlayerX();
-    last_known_player_location.y = monster.getLastKnownPlayerY();
+    last_known_player_location.x = monster.last_known_player_x;
+    last_known_player_location.y = monster.last_known_player_y;
     switch(decimal_type) {
         case 0: // nothing
             if (monster_is_in_same_room_as_player(index)) {
@@ -1553,8 +1622,8 @@ void move_monster_at_index(int index) {
             break;
         case 1: // intelligent
             if (monster_is_in_same_room_as_player(index)) {
-                monster.setLastKnownPlayerX(player.x);
-                monster.setLastKnownPlayerY(player.y);
+                monster.last_known_player_x = player.x;
+                monster.last_known_player_y = player.y;
                 new_coord = get_straight_path_to(index, player);
             }
             else if(monster_knows_last_player_location(index)) {
@@ -1603,8 +1672,8 @@ void move_monster_at_index(int index) {
             break;
         case 5: // tunneling + intelligent
             if (monster_is_in_same_room_as_player(index)) {
-                monster.setLastKnownPlayerX(player.x);
-                monster.setLastKnownPlayerY(player.y);
+                monster.last_known_player_x = player.x;
+                monster.last_known_player_y = player.y;
                 new_coord = get_straight_path_to(index, player);
             }
             else if(monster_knows_last_player_location(index)) {
@@ -1685,8 +1754,8 @@ void move_monster_at_index(int index) {
             }
             else {
                 if (monster_is_in_same_room_as_player(index)) {
-                    monster.setLastKnownPlayerX(player.x);
-                    monster.setLastKnownPlayerY(player.y);
+                    monster.last_known_player_x = player.x;
+                    monster.last_known_player_y = player.y;
                     new_coord = get_straight_path_to(index, player);
                 }
                 else if(monster_knows_last_player_location(index)) {
@@ -1767,8 +1836,8 @@ void move_monster_at_index(int index) {
             }
             else {
                 if (monster_is_in_same_room_as_player(index)) {
-                    monster.setLastKnownPlayerX(player.x);
-                    monster.setLastKnownPlayerY(player.y);
+                    monster.last_known_player_x = player.x;
+                    monster.last_known_player_y = player.y;
                     new_coord = get_straight_path_to(index, player);
                 }
                 else if(monster_knows_last_player_location(index)) {
@@ -1848,8 +1917,11 @@ void move_monster_at_index(int index) {
     if (new_coord.x != monster_x || new_coord.y != monster_y) {
         kill_player_or_monster_at(new_coord);
     }
-    monster.setX(new_coord.x);
-    monster.setY(new_coord.y);
-    monsters[index] = monster;
+    index = get_index_of_monster(monster);
+    monster.x = new_coord.x;
+    monster.y = new_coord.y;
+    if (index >= 0) {
+        monsters[index] = monster;
+    }
     board[new_coord.y][new_coord.x].has_monster = 1;
 }
