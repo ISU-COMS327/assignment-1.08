@@ -104,3 +104,7 @@ MonsterTemplate::MonsterTemplate() {
     abilities.clear();
 }
 
+MonsterTemplate :: ~MonsterTemplate() {
+    colors.clear();
+    abilities.clear();
+}

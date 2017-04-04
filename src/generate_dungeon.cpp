@@ -18,6 +18,7 @@
 
 #include "util.h"
 #include "monster.h"
+#include "object.h"
 #include "monster_description_parser.h"
 #include "monster_template.h"
 #include "object_description_parser.h"
@@ -61,6 +62,7 @@ typedef struct {
     uint8_t y;
     uint8_t has_player;
     Monster *monster;
+    Object * object;
 } Board_Cell;
 
 typedef struct {
@@ -83,6 +85,8 @@ static struct Coordinate ncurses_start_coord;
 static vector<struct Room> rooms;
 static vector<Monster *> monsters;
 static vector<MonsterTemplate> monster_templates;
+static vector<Object *> objects;
+static vector<ObjectTemplate> object_templates;
 static struct Coordinate player;
 static PriorityQueue * game_queue;
 static map<string, int> color_map;
@@ -154,8 +158,6 @@ void kill_player_or_monster_at(struct Coordinate coord);
 
 int main(int argc, char *args[]) {
     game_queue = new PriorityQueue();
-    cout << "herexx";
-    usleep(83333);
     int player_x = -1;
     int player_y = -1;
     struct option longopts[] = {
@@ -225,18 +227,9 @@ int main(int argc, char *args[]) {
     move(ncurses_player_coord.y, ncurses_player_coord.x);
     refresh();
     while(monsters.size() > 0 && PLAYER_IS_ALIVE && !DO_QUIT) {
-        add_message("New Game Loop");
-        usleep(8333);
-        move(ncurses_player_coord.y, ncurses_player_coord.x);
-        add_message("Post move");
-        usleep(8333);
         center_board_on_player();
         refresh();
-        add_message("About to extract min");
-        usleep(8333);
         Node min = game_queue->extractMin();
-        add_message("Extracted min!");
-        usleep(8333);
         int speed;
         if (min.coord.x == player.x && min.coord.y == player.y) {
             add_message("It's your turn");
@@ -257,49 +250,35 @@ int main(int argc, char *args[]) {
             if (DO_QUIT) {
                 break;
             }
-            add_message("about to center board");
-            usleep(833);
             center_board_on_player();
-            add_message("Board centered");
-            usleep(833);
             refresh();
-            add_message("refreshed");
-            usleep(833);
             if (success == 2) {
                 continue;
             }
             min.coord.x = player.x;
             min.coord.y = player.y;
-            add_message("set min coord");
-            usleep(833);
             set_non_tunneling_distance_to_player();
-            add_message("set non tunn");
-            usleep(833);
             set_tunneling_distance_to_player();
-            add_message("set tunn");
-            usleep(833);
-            add_message("Completed distancing stuff");
-            usleep(833);
         }
         else {
-            add_message("About to fetch monster");
-            usleep(8333);
             Monster * monster = board[min.coord.y][min.coord.x].monster;
             if (monster == NULL) {
-                add_message("MONSTER NOT FOUND");
-                usleep(83333);
                 continue;
             }
-            add_message("GAME: About to move monster " + monster->name);
-            usleep(8333);
             move_monster(monster);
-            add_message("game: Moved monster " + monster->name);
-            usleep(8333);
 
             speed = monster->speed;
             min.coord.x = monster->x;
             min.coord.y = monster->y;
         }
+        if (PLAYER_IS_ALIVE) {
+            move(ncurses_player_coord.y, ncurses_player_coord.x);
+        }
+        else {
+            curs_set(0);
+        }
+        center_board_on_player();
+        refresh();
         game_queue->insertWithPriority(min.coord, (1000/speed) + min.priority);
     }
 
@@ -366,7 +345,23 @@ void generate_monsters_from_templates() {
 }
 
 void generate_objects_from_templates() {
-
+    objects.clear();
+    for (int i = 0; i < object_templates.size(); i++) {
+        struct Coordinate coordinate;
+        ObjectTemplate object_template = object_templates[i];
+        Object * object = object_template.makeObject();
+        while(1) {
+            coordinate = get_random_board_location();
+            Board_Cell cell = board[coordinate.y][coordinate.x];
+            if (!cell.object) {
+                break;
+            }
+        }
+        object->x = coordinate.x;
+        object->y = coordinate.y;
+        board[object->y][object->x].object = object;
+        objects.push_back(object);
+    }
 }
 
 void make_monster_templates() {
@@ -393,6 +388,8 @@ void make_object_templates() {
         cout << "Error reading object file: " << e << "\nExiting program" << endl;
         exit(2);
     }
+    object_templates = p->getObjectTemplates();
+    delete p;
 }
 
 void update_number_of_rooms() {
@@ -420,29 +417,14 @@ void generate_new_board() {
     if (game_queue->size() > 0) {
         delete game_queue;
     }
-    add_message("Template size: " + to_string(monster_templates.size()));
-    usleep(8333);
     game_queue = new PriorityQueue();
-    add_message("Creatd queue");
-    usleep(8333);
     place_player();
-    add_message("Placed player");
-    usleep(8333);
     set_placeable_areas();
-    add_message("Placable areas");
-    usleep(8333);
     set_non_tunneling_distance_to_player();
-    add_message("non tunnel");
-    usleep(8333);
     set_tunneling_distance_to_player();
-    add_message("tunnel");
-    usleep(8333);
     generate_monsters_from_templates();
-    add_message("MONSTERS");
-    usleep(8333);
     generate_stairs();
-    add_message("Stairs");
-    usleep(8333);
+    generate_objects_from_templates();
 }
 
 struct Coordinate get_random_unoccupied_location_in_room(struct Room room) {
@@ -608,6 +590,7 @@ void initialize_board() {
     Board_Cell cell;
     cell.type = TYPE_ROCK;
     cell.monster = NULL;
+    cell.object = NULL;
     cell.has_player = 0;
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -631,6 +614,7 @@ void initialize_immutable_rock() {
     cell.type = TYPE_ROCK;
     cell.hardness = IMMUTABLE_ROCK;
     cell.monster = NULL;
+    cell.object = NULL;
     cell.has_player = 0;
     for (y = 0; y < HEIGHT; y++) {
         cell.y = y;
@@ -1016,8 +1000,6 @@ void update_board_view(int ncurses_start_x, int ncurses_start_y) {
     ncurses_start_coord.x = ncurses_start_x;
     ncurses_start_coord.y = ncurses_start_y;
     int row = 0;
-    add_message("Updating board view");
-    usleep(8333);
     for (int y = ncurses_start_y; y <= ncurses_start_y + NCURSES_HEIGHT; y++) {
         int col = 0;
         for (int x = ncurses_start_x; x <= ncurses_start_x + NCURSES_WIDTH; x++) {
@@ -1027,13 +1009,17 @@ void update_board_view(int ncurses_start_x, int ncurses_start_y) {
                 ncurses_player_coord.y = row;
             }
             else if (player_board[y][x].monster) {
-                struct Coordinate coord;
-                coord.x = x;
-                coord.y = y;
                 Monster *monster = player_board[y][x].monster;
                 int color_key = color_map[monster->color];
                 attron(COLOR_PAIR(color_key));
                 mvprintw(row, col, "%c", monster->symbol);
+                attroff(COLOR_PAIR(color_key));
+            }
+            else if(player_board[y][x].object) {
+                Object * object = player_board[y][x].object;
+                int color_key = color_map[object->color];
+                attron(COLOR_PAIR(color_key));
+                mvprintw(row, col,"%c", object->getSymbol());
                 attroff(COLOR_PAIR(color_key));
             }
             else {
@@ -1061,8 +1047,6 @@ void update_board_view(int ncurses_start_x, int ncurses_start_y) {
         }
         row ++;
     }
-    add_message("Updated board view");
-    usleep(8333);
 }
 
 void handle_user_input_for_look_mode(int key) {
@@ -1199,8 +1183,6 @@ void center_board_on_player() {
     int new_x = player.x - 40;
     update_board_view(new_x, new_y);
     move(ncurses_player_coord.y, ncurses_player_coord.x);
-    add_message("MOVED NCURSES");
-    usleep(8333);
 }
 
 void print_board() {
@@ -1316,6 +1298,7 @@ void add_rooms_to_board() {
     cell.type = TYPE_ROOM;
     cell.hardness = ROOM;
     cell.monster = NULL;
+    cell.object = NULL;
     cell.has_player = 0;
     for(int i = 0; i < rooms.size(); i++) {
         struct Room room = rooms[i];
@@ -1375,6 +1358,7 @@ void connect_rooms_at_indexes(int index1, int index2) {
         corridor_cell.type = TYPE_CORRIDOR;
         corridor_cell.hardness = CORRIDOR;
         corridor_cell.monster = NULL;
+        corridor_cell.object = NULL;
         corridor_cell.has_player = 0;
         corridor_cell.x = cur_x;
         corridor_cell.y = cur_y;
@@ -1639,24 +1623,15 @@ void kill_monster(Monster * m) {
     if (index >= 0) {
         monsters.erase(monsters.begin() + index);
     }
-    else {
-        add_message("COULD NOT FIND MONSTER TO KILL");
-        usleep(83333);
-    }
     delete m;
 }
 
 void kill_player_or_monster_at(struct Coordinate coord) {
     Monster * m = board[coord.y][coord.x].monster;
     if (m) {
-        add_message("KILLING HUMAN OR MONSTER");
-        usleep(833333);
         kill_monster(m);
     }
     if (player.x == coord.x && player.y == coord.y) {
-        add_message("KILLING HUMAN OR MONSTER");
-        usleep(833333);
-
         PLAYER_IS_ALIVE = 0;
         add_message("The player was killed!\n");
     }
@@ -1677,7 +1652,6 @@ void move_monster(Monster * monster) {
     struct Coordinate last_known_player_location;
     last_known_player_location.x = monster->last_known_player_x;
     last_known_player_location.y = monster->last_known_player_y;
-    add_message("Monstering " + monster->name);
     switch(decimal_type) {
         case 0: // nothing
             if (monster_is_in_same_room_as_player(monster)) {
@@ -1984,8 +1958,6 @@ void move_monster(Monster * monster) {
     if (new_coord.x != monster_x || new_coord.y != monster_y) {
         kill_player_or_monster_at(new_coord);
     }
-    add_message("updating coord: " + to_string(new_coord.x) + ", " + to_string(new_coord.y) + " :: " + to_string(monster->x) + ", " + to_string(monster->y));
-    usleep(8333);
     board[monster->y][monster->x].monster = NULL;
     monster->x = new_coord.x;
     monster->y = new_coord.y;
