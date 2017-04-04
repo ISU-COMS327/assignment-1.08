@@ -14,4 +14,5 @@ class MonsterDescriptionParser {
         vector<MonsterTemplate> getMonsterTemplates();
         Monster makeMonster();
         MonsterDescriptionParser(string filepath);
+        ~MonsterDescriptionParser() {};
 };

@@ -15,6 +15,7 @@ class Numeric {
         int roll();
         Numeric(string);
         Numeric();
+        ~Numeric() {};
 };
 
 #endif

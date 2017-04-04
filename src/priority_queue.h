@@ -1,3 +1,7 @@
+#include <vector>
+
+using namespace std;
+
 struct Coordinate {
     uint8_t x;
     uint8_t y;
@@ -9,12 +13,13 @@ typedef struct {
     struct Coordinate coord;
 } Node;
 
-typedef struct {
-    int length;
-    Node * nodes;
-} Queue;
+class PriorityQueue {
+    private:
+        std::vector<Node> nodes;
 
-Queue * create_new_queue(int max_size);
-void insert_with_priority(Queue *q, struct Coordinate coord, int priority);
-Node extract_min(Queue * q);
-void decrease_priority(Queue *q, struct Coordinate coord, int priority);
+    public:
+        int size();
+        void insertWithPriority(struct Coordinate, int);
+        void decreasePriority(struct Coordinate, int);
+        Node extractMin();
+};

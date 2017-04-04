@@ -100,7 +100,7 @@ Monster * MonsterTemplate::makeMonster() {
 MonsterTemplate::MonsterTemplate() {
     name = "";
     description = "";
-    colors.empty();
-    abilities.empty();
+    colors.clear();
+    abilities.clear();
 }
 

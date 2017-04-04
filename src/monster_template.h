@@ -39,6 +39,7 @@ class MonsterTemplate {
         Numeric * getAttackDamage();
         void setAttackDamage(Numeric *);
         string toString();
+        ~MonsterTemplate();
         MonsterTemplate();
 };
 

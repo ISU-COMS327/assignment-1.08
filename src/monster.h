@@ -23,5 +23,6 @@ class Monster {
 
         void resetPlayerLocation();
         int getDecimalType();
+        ~Monster() {};
 };
 #endif

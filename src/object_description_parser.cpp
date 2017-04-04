@@ -22,7 +22,6 @@ ObjectDescriptionParser::ObjectDescriptionParser(string filepath) {
 }
 
 void ObjectDescriptionParser::parseFile() {
-    cout << "Parsing file: " + filepath << endl;
     vector<ObjectTemplate> new_objects;
     ObjectTemplate * current_object = NULL;
     string line;
