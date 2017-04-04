@@ -1,0 +1,111 @@
+commit 76e7bb0
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 18:09:30 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 18:09:30 2017 -0500
+
+    Initialize Project
+
+commit 475aee9
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 18:09:53 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 18:09:53 2017 -0500
+
+    Add .gitignore.
+
+commit eff8825
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 18:51:30 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 18:51:30 2017 -0500
+
+    Convert numeric_t to an object
+
+commit 70fe3d8
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 18:51:38 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 18:51:38 2017 -0500
+
+    Forgot to make clean before committing
+
+commit d074203
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 19:07:27 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 19:07:27 2017 -0500
+
+    Split some common functions out into a util file
+
+commit 16307b0
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 19:07:35 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 19:07:35 2017 -0500
+
+    Forgot to make clean
+
+commit e487302
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 20:07:54 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 20:07:54 2017 -0500
+
+    Implemented loading object templates from file
+
+commit d9faab7
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Thu Mar 30 21:37:04 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Thu Mar 30 21:37:04 2017 -0500
+
+    Update Makefile, organize file structure
+
+commit 6fd49aa
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Mon Apr 3 17:47:59 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Mon Apr 3 17:47:59 2017 -0500
+
+    Monster factory working
+
+commit 9c3f732
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Tue Apr 4 10:51:08 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Tue Apr 4 10:51:08 2017 -0500
+
+    Fixed seg faults and overflow issues
+
+commit 5e541e2
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Tue Apr 4 11:52:19 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Tue Apr 4 11:52:19 2017 -0500
+
+    Objects and monsters are being added
+
+commit 9e0aad1
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Tue Apr 4 11:59:10 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Tue Apr 4 11:59:10 2017 -0500
+
+    Get a random set of monsters and objects from their respective files
+
+commit 340d05e
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Tue Apr 4 12:03:37 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Tue Apr 4 12:03:37 2017 -0500
+
+    Correctly print invalid character
+
+commit 6e2722f (HEAD -> master, origin/master)
+Author:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+AuthorDate: Tue Apr 4 12:17:58 2017 -0500
+Commit:     Joseph McGovern <joseph.mcgovern@webfilings.com>
+CommitDate: Tue Apr 4 12:17:58 2017 -0500
+
+    Update README
