@@ -1176,7 +1176,11 @@ int handle_user_input(int key) {
         DO_QUIT = 1;
     }
     else {
-        add_message("'" + to_string((char) key) + "' is not supported");
+        char ascii = key;
+        string message = "'";
+        message += ascii;
+        message += "' is not supported";
+        add_message(message);
         return 0;
     }
     if (new_coord.x != player.x || new_coord.y != player.y) {
