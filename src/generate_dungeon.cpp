@@ -298,6 +298,13 @@ int main(int argc, char *args[]) {
     }
     endwin();
 
+    monsters.clear();
+    objects.clear();
+    monster_templates.clear();
+    object_templates.clear();
+    delete game_queue;
+    free(board);
+    free(player_board);
 
     return 0;
 }
@@ -321,11 +328,12 @@ void init_color_pairs() {
 
 void generate_monsters_from_templates() {
     monsters.clear();
-    for (int i = 0; i < monster_templates.size(); i++) {
+    while (monsters.size() < NUMBER_OF_MONSTERS) {
+        int i = random_int(0, monster_templates.size() - 1);
         struct Coordinate coordinate;
         MonsterTemplate monster_template = monster_templates[i];
         Monster * monster = monster_template.makeMonster();
-        while (1) {
+        while (true) {
             coordinate = get_random_board_location();
             Board_Cell cell = board[coordinate.y][coordinate.x];
             if (cell.monster || player.x == coordinate.x || player.y == coordinate.y) {
@@ -339,18 +347,20 @@ void generate_monsters_from_templates() {
         monster->y = coordinate.y;
         board[monster->y][monster->x].monster = monster;
         monsters.push_back(monster);
-        game_queue->insertWithPriority(coordinate, i + 1);
+        game_queue->insertWithPriority(coordinate, monsters.size());
     }
 
 }
 
 void generate_objects_from_templates() {
     objects.clear();
-    for (int i = 0; i < object_templates.size(); i++) {
+    int number_of_objects = random_int(20, 40);
+    while(objects.size() < number_of_objects) {
+        int i = random_int(0, object_templates.size() - 1);
         struct Coordinate coordinate;
         ObjectTemplate object_template = object_templates[i];
         Object * object = object_template.makeObject();
-        while(1) {
+        while(true) {
             coordinate = get_random_board_location();
             Board_Cell cell = board[coordinate.y][coordinate.x];
             if (!cell.object) {
