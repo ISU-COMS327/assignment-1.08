@@ -3,8 +3,8 @@
 using namespace std;
 
 struct Coordinate {
-    uint8_t x;
-    uint8_t y;
+    int x;
+    int y;
 };
 
 typedef struct {
@@ -15,7 +15,7 @@ typedef struct {
 
 class PriorityQueue {
     private:
-        std::vector<Node> nodes;
+        vector<Node> nodes;
 
     public:
         int size();
